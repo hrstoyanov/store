@@ -70,6 +70,10 @@ class VectorIndexInvalidateGraphTest
         return vectorIndices.get("vec");
     }
 
+    /**
+     * Rebuilds a sparse computed-vector graph repeatedly, then changes vectors between searches.
+     * A rebuild snapshot must not hide later mutations or resurrect a deleted entity.
+     */
     @Test
     void sparseComputedRebuildReleasesItsScoringSnapshotBeforeLaterMutations()
     {
