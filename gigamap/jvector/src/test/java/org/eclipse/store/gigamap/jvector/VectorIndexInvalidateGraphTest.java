@@ -71,6 +71,35 @@ class VectorIndexInvalidateGraphTest
     }
 
     @Test
+    void sparseComputedRebuildReleasesItsScoringSnapshotBeforeLaterMutations()
+    {
+        final GigaMap<Entity> map = GigaMap.New();
+        final VectorIndex<Entity> index = newIndex(map);
+        for(int i = 0; i < 128; i++)
+        {
+            map.add(new Entity(new float[]{0, i + 1, 1, 0}));
+        }
+        for(long id = 0; id < 128; id += 2)
+        {
+            map.removeById(id);
+        }
+        final long target = map.add(new Entity(new float[]{1, 0, 0, 0}));
+        for(int round = 0; round < 4; round++)
+        {
+            index.invalidateGraph();
+            assertEquals(target, index.search(new float[]{1, 0, 0, 0}, 1).toList().get(0).entityId());
+            // A cache retained by the builder would keep scoring the old vector after this mutation.
+            map.set(target, new Entity(new float[]{0, 0, 0, 1}));
+            assertEquals(target, index.search(new float[]{0, 0, 0, 1}, 1).toList().get(0).entityId());
+            map.set(target, new Entity(new float[]{1, 0, 0, 0}));
+        }
+        map.removeById(target);
+        index.invalidateGraph();
+        assertTrue(index.search(new float[]{1, 0, 0, 0}, 8).stream()
+            .noneMatch(hit -> hit.entityId() == target), "rebuilding must not resurrect a deleted ordinal");
+    }
+
+    @Test
     void searchAfterInvalidationRebuildsFromCurrentState()
     {
         final GigaMap<Entity> map = GigaMap.New();
